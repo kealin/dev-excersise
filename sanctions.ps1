@@ -4,17 +4,10 @@
 # Store the downloaded data using a storage option of your choice and include the following fields:
 # lastname, firstname, middlename, wholename
 
-# Handle file download and store into variable 
-# using Invoke-WebRequest cmdlet 
-# (https://msdn.microsoft.com/en-us/powershell/reference/5.1/microsoft.powershell.utility/invoke-webrequest)
-
-Import-Module AzureRmStorageTable
-
 function Init-Table
 {
     param($storageContext, $tableName, $createIfNotExists)
 
-	Write-Host "Initializing table"
     $table = Get-AzureStorageTable $tableName -Context $storageContext -ErrorAction Ignore
     if ($table -eq $null)
     {   
@@ -26,9 +19,7 @@ function Init-Table
 
 function Init-Table-Storage
 {
-	Write-Host "Initializing storage context"
-
-	$ConnectionString = <ConnectionString>
+	$ConnectionString = <ConnectionStringHere>
 	$Ctx = New-AzureStorageContext -ConnectionString $ConnectionString
 	$TableName = "SanctionedPeople"
 	
@@ -38,7 +29,6 @@ function Init-Table-Storage
 function Fetch-XML {
 	
 	$url = "http://ec.europa.eu/external_relations/cfsp/sanctions/list/version4/global/global.xml"
-	Write-Host "Fetching XML from $url"
 	[Net.HttpWebRequest]$WebRequest = [Net.WebRequest]::Create($url)
     [Net.HttpWebResponse]$WebResponse = $WebRequest.GetResponse()
     $Reader = New-Object IO.StreamReader($WebResponse.GetResponseStream())
@@ -50,7 +40,7 @@ function Fetch-XML {
 function Insert-XML 
 {
 	param($table, $xml)
-	# PartitionKey and RowKey are indexed for a clustered index 
+	# PartitionKey and RowKey form clustered index
 	# => Faster lookups
 	$PartitionKey = "sanctioned"
 
@@ -75,7 +65,6 @@ function Insert-XML
 
        if ($batch.Count -eq 100)
        {
-		   Write-Host "Executing batch of 100 entities..."
            $table.ExecuteBatch($batch);
            $batches[$partitionKey] = (New-Object Microsoft.WindowsAzure.Storage.Table.TableBatchOperation)
        }			 
