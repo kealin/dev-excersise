@@ -8,57 +8,34 @@
 # using Invoke-WebRequest cmdlet 
 # (https://msdn.microsoft.com/en-us/powershell/reference/5.1/microsoft.powershell.utility/invoke-webrequest)
 
-# Module for Table Storage (https://blogs.technet.microsoft.com/paulomarques/2017/01/17/working-with-azure-storage-tables-from-powershell/)
-# Requires following dependencies:
-# - AzureRm.profile
-# - AzureRm.Profile
-# - Azure.Storage
-# - AzureRM.Storage
-
 Import-Module AzureRmStorageTable
+
+function Init-Table
+{
+    param($storageContext, $tableName, $createIfNotExists)
+
+    $table = Get-AzureStorageTable $tableName -Context $storageContext -ErrorAction Ignore
+    if ($table -eq $null)
+    {   
+        $table = New-AzureStorageTable $tablename -Context $storageContext
+    }
+    
+    return $table.CloudTable
+}
 
 function Init-Table-Storage
 {
 	Write-Host "Configuring Azure subscription"
 
-	# Setup Azure sub and table storage
-	$subscription = "Pay-As-You-Go"
-	$resourceGroup = "if-exercise"
-	$storageAccount = "iftablestorage"
-	$tableName = "persons"
+	$ConnectionString = <ConnectionStringHere>
+	$Ctx = New-AzureStorageContext -ConnectionString $ConnectionString
+	$TableName = "SanctionedPeople"
 	
-	# PartitionKey and RowKey are indexed for a clustered index 
-	# => Faster lookups
-	$partitionKey = "sanctioned"
-	
-	Add-AzureRmAccount
-	Select-AzureRmSubscription -SubscriptionName $subscription 
-
-	$saContext = (Get-AzureRmStorageAccount -ResourceGroupName $resourceGroup -Name $storageAccount).Context
-
-	# TODO: Try avoiding try catch for flow control
-	Try {
-		# Seems we have to manually make errors terminating
-		$ErrorActionPreference = "Stop";
-		Write-Host "Fetching table $tableName"
-		$global:table = Get-AzureStorageTable -Name $tableName -Context $saContext
-		Fetch-XML
-	}
-	Catch [Microsoft.WindowsAzure.Commands.Storage.Common.ResourceNotFoundException]
-	{
-	   Write-Host "Storage table $tableName doesn't exist, creating it";
-	   New-AzureStorageTable –Name $tableName –Context $saContext
-	   $global:table = Get-AzureStorageTable -Name $tableName -Context $saContext
-	   Fetch-XML
-	}
-	finally
-	{
-	   # Reset error action to carry on with our flow
-	   $ErrorActionPreference = "Continue"; 
-	}
+	return Init-Table $Ctx $TableName
 }
 
 function Fetch-XML {
+
 	$url = "http://ec.europa.eu/external_relations/cfsp/sanctions/list/version4/global/global.xml"
 	Write-Host "Fetching XML from $url"
 	[Net.HttpWebRequest]$WebRequest = [Net.WebRequest]::Create($url)
@@ -66,11 +43,45 @@ function Fetch-XML {
     $Reader = New-Object IO.StreamReader($WebResponse.GetResponseStream())
     [xml]$xml = $Reader.ReadToEnd()
     $Reader.Close()
+	return $xml
+}
+
+function Insert-XML 
+{
+	param($table, $xml)
+	# PartitionKey and RowKey are indexed for a clustered index 
+	# => Faster lookups
+	$PartitionKey = "sanctioned"
+
+	$batches = @{}
 
 	foreach($person in $xml.WHOLE.ENTITY.NAME) {
-		Add-StorageTableRow -table $table -partitionKey $partitionKey -rowKey ([guid]::NewGuid().tostring()) -property @{"lastName"=$person.LASTNAME;"firstName"=$person.FIRSTNAME;"middleName"=$person.MIDDLENAME;"wholeName"=$person.WHOLENAME}
+	
+		$rowKey = ([guid]::NewGuid().tostring())
+		$entity = New-Object -TypeName Microsoft.WindowsAzure.Storage.Table.DynamicTableEntity -ArgumentList $partitionKey, $rowKey
+		$entity.Properties.Add("lastName", $person.LASTNAME)
+		$entity.Properties.Add("firstName", $person.FIRSTNAME)
+		$entity.Properties.Add("middleName", $person.MIDDLENAME)
+		$entity.Properties.Add("wholeName", $person.WHOLENAME)
+		
+		Write-Host $entity
+		
+	   if ($batches.ContainsKey($partitionKey) -eq $false)
+       {
+           $batches.Add($partitionKey, (New-Object Microsoft.WindowsAzure.Storage.Table.TableBatchOperation))
+       }
+
+       $batch = $batches[$partitionKey]
+       $batch.Add([Microsoft.WindowsAzure.Storage.Table.TableOperation]::InsertOrReplace($entity));
+
+       if ($batch.Count -eq 100)
+       {
+           $table.ExecuteBatch($batch);
+           $batches[$partitionKey] = (New-Object Microsoft.WindowsAzure.Storage.Table.TableBatchOperation)
+       }			 
 	}
 }
 
-Init-Table-Storage
-
+$table = Init-Table-Storage
+$xml = Fetch-XML
+Insert-XML $table $xml
