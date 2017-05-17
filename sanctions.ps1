@@ -17,16 +17,20 @@
 
 Import-Module AzureRmStorageTable
 
-function initTableStorage
+function Init-Table-Storage
 {
 	Write-Host "Configuring Azure subscription"
 
 	# Setup Azure sub and table storage
-	$subscription = ""
-	$resourceGroup = ""
-	$storageAccount = ""
+	$subscription = "Pay-As-You-Go"
+	$resourceGroup = "if-exercise"
+	$storageAccount = "iftablestorage"
 	$tableName = "persons"
-
+	
+	# PartitionKey and RowKey are indexed for a clustered index 
+	# => Faster lookups
+	$partitionKey = "sanctioned"
+	
 	Add-AzureRmAccount
 	Select-AzureRmSubscription -SubscriptionName $subscription 
 
@@ -36,12 +40,16 @@ function initTableStorage
 	Try {
 		# Seems we have to manually make errors terminating
 		$ErrorActionPreference = "Stop";
-		$table = Get-AzureStorageTable -Name $tableName -Context $saContext
+		Write-Host "Fetching table $tableName"
+		$global:table = Get-AzureStorageTable -Name $tableName -Context $saContext
+		Fetch-XML
 	}
 	Catch [Microsoft.WindowsAzure.Commands.Storage.Common.ResourceNotFoundException]
 	{
 	   Write-Host "Storage table $tableName doesn't exist, creating it";
 	   New-AzureStorageTable –Name $tableName –Context $saContext
+	   $global:table = Get-AzureStorageTable -Name $tableName -Context $saContext
+	   Fetch-XML
 	}
 	finally
 	{
@@ -50,21 +58,19 @@ function initTableStorage
 	}
 }
 
-function fetchXML {
+function Fetch-XML {
 	$url = "http://ec.europa.eu/external_relations/cfsp/sanctions/list/version4/global/global.xml"
 	Write-Host "Fetching XML from $url"
-	Invoke-WebRequest -Uri $url | Select-Object -ExpandProperty content | Out-File sanctions.xml
-	[xml]$xml = Get-Content sanctions.xml
+	[Net.HttpWebRequest]$WebRequest = [Net.WebRequest]::Create($url)
+    [Net.HttpWebResponse]$WebResponse = $WebRequest.GetResponse()
+    $Reader = New-Object IO.StreamReader($WebResponse.GetResponseStream())
+    [xml]$xml = $Reader.ReadToEnd()
+    $Reader.Close()
 
-	#foreach($person in $xml.WHOLE.ENTITY.NAME) {
-	#	Write-Host ---------------------
-	#	Write-Host $person.LASTNAME `r`n
-	#	Write-Host $person.FIRSTNAME `r`n
-	#	Write-Host $person.MIDDLENAME `r`n
-	#	Write-Host $person.WHOLENAME `r`n
-	#	Write-Host ---------------------
-	#}
+	foreach($person in $xml.WHOLE.ENTITY.NAME) {
+		Add-StorageTableRow -table $table -partitionKey $partitionKey -rowKey ([guid]::NewGuid().tostring()) -property @{"lastName"=$person.LASTNAME;"firstName"=$person.FIRSTNAME;"middleName"=$person.MIDDLENAME;"wholeName"=$person.WHOLENAME}
+	}
 }
 
-initTableStorage
-fetchXML
+Init-Table-Storage
+
