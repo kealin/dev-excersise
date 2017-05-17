@@ -14,6 +14,7 @@ function Init-Table
 {
     param($storageContext, $tableName, $createIfNotExists)
 
+	Write-Host "Initializing table"
     $table = Get-AzureStorageTable $tableName -Context $storageContext -ErrorAction Ignore
     if ($table -eq $null)
     {   
@@ -25,9 +26,9 @@ function Init-Table
 
 function Init-Table-Storage
 {
-	Write-Host "Configuring Azure subscription"
+	Write-Host "Initializing storage context"
 
-	$ConnectionString = <ConnectionStringHere>
+	$ConnectionString = <ConnectionString>
 	$Ctx = New-AzureStorageContext -ConnectionString $ConnectionString
 	$TableName = "SanctionedPeople"
 	
@@ -35,7 +36,7 @@ function Init-Table-Storage
 }
 
 function Fetch-XML {
-
+	
 	$url = "http://ec.europa.eu/external_relations/cfsp/sanctions/list/version4/global/global.xml"
 	Write-Host "Fetching XML from $url"
 	[Net.HttpWebRequest]$WebRequest = [Net.WebRequest]::Create($url)
@@ -64,8 +65,6 @@ function Insert-XML
 		$entity.Properties.Add("middleName", $person.MIDDLENAME)
 		$entity.Properties.Add("wholeName", $person.WHOLENAME)
 		
-		Write-Host $entity
-		
 	   if ($batches.ContainsKey($partitionKey) -eq $false)
        {
            $batches.Add($partitionKey, (New-Object Microsoft.WindowsAzure.Storage.Table.TableBatchOperation))
@@ -76,6 +75,7 @@ function Insert-XML
 
        if ($batch.Count -eq 100)
        {
+		   Write-Host "Executing batch of 100 entities..."
            $table.ExecuteBatch($batch);
            $batches[$partitionKey] = (New-Object Microsoft.WindowsAzure.Storage.Table.TableBatchOperation)
        }			 
