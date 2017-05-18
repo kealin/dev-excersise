@@ -19,7 +19,7 @@ function Init-Table
 
 function Init-Table-Storage
 {
-	$ConnectionString = <ConnectionStringHere>
+	$ConnectionString = "$($env:ConnectionString)"
 	$Ctx = New-AzureStorageContext -ConnectionString $ConnectionString
 	$TableName = "SanctionedPeople"
 	
