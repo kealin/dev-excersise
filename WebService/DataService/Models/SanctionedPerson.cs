@@ -6,17 +6,10 @@ using System.Web;
 
 namespace DataService.Models
 {
-    public class SanctionedEntity : TableEntity
+    public class SanctionedPerson : TableEntity
     { 
-        public SanctionedEntity(String PartitionKey, String RowKey)
+        public SanctionedPerson()
         {
-            this.PartitionKey = PartitionKey;
-            this.RowKey = RowKey;
-        }
-
-        public SanctionedEntity()
-        {
-
         }
 
         public string FirstName { get; set; }

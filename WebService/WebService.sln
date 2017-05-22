@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26430.6
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{CC5FD16D-436D-48AD-A40C-5A424C6E3E79}") = "WebService", "WebService\WebService.ccproj", "{33F4BA36-0855-4233-8866-62B87A6EC3ED}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataService", "DataService\DataService.csproj", "{2551202F-C5EA-48B9-B3DB-68551C3B0F4C}"
 EndProject
 Global
@@ -13,10 +11,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{33F4BA36-0855-4233-8866-62B87A6EC3ED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{33F4BA36-0855-4233-8866-62B87A6EC3ED}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{33F4BA36-0855-4233-8866-62B87A6EC3ED}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{33F4BA36-0855-4233-8866-62B87A6EC3ED}.Release|Any CPU.Build.0 = Release|Any CPU
 		{2551202F-C5EA-48B9-B3DB-68551C3B0F4C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{2551202F-C5EA-48B9-B3DB-68551C3B0F4C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2551202F-C5EA-48B9-B3DB-68551C3B0F4C}.Release|Any CPU.ActiveCfg = Release|Any CPU

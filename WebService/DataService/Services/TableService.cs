@@ -6,31 +6,26 @@ using Microsoft.Azure;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Table;
 using DataService.Models;
+using AutoMapper;
+using DataService.Repositories;
 
 namespace DataService.Services
 {
-    public class TableService
+    public class TableService : ITableService
     {
-        public readonly String tableName = "SanctionedPeople";
-        public readonly String partitionKey = "sanctioned";
-        public CloudTable table;
-        public CloudTableClient tableClient;
-        public CloudStorageAccount storageAccount;
+        private readonly ITableRepository _tableRepository;
+        private readonly IMapper _mapper;
 
-        public TableService()
+        public TableService(ITableRepository tableRepository, IMapper mapper)
         {
-            storageAccount = CloudStorageAccount.Parse(CloudConfigurationManager.GetSetting("StorageConnectionString"));
-            tableClient = storageAccount.CreateCloudTableClient();
-            table = tableClient.GetTableReference(tableName);
-            table.CreateIfNotExists();
+            _tableRepository = tableRepository;
+            _mapper = mapper;
         }
 
-        public IEnumerable<SanctionedEntity> GetAll()
+        public List<SanctionedPersonDto> GetAll()
         {
-            TableQuery<SanctionedEntity> query = new TableQuery<SanctionedEntity>()
-                .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, partitionKey));
-            return table.ExecuteQuery(query);
+            var data = _tableRepository.GetAll();
+            return _mapper.Map<List<SanctionedPersonDto>>(data);
         }
-        
     }
 }
