@@ -25,6 +25,7 @@ namespace DataService.Repositories
             table.CreateIfNotExists();
         }
 
+        // TODO: Implement paging
         public IEnumerable<SanctionedPerson> GetAll()
         {
             TableQuery<SanctionedPerson> query = new TableQuery<SanctionedPerson>()
